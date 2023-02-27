@@ -86,7 +86,7 @@ class CarlaEnv(gym.Env):
 
         self.vehicle = self.world.spawn_actor(self.lincoln, self.start_transform_Town04)
         self.actor_list.append(self.vehicle)
-        self.world.tick()  # TODO: it must have, don't fuck
+        # self.world.tick()  # TODO: it must have, don't fuck
 
         # Just to make it start recording, apparently passing an empty command makes it react
         # self.vehicle.apply_control(carla.VehicleControl(throttle=0.0, brake=0.0))
@@ -146,9 +146,10 @@ class CarlaEnv(gym.Env):
         obs = self.get_obs()
         reward -= obs[0] * 10
         reward -= obs[2]
-        reward += square_dist_diff / 10
+        reward += square_dist_diff
+        # reward += 1
 
-        if math.fabs(obs[0]) > 0.6 or math.fabs(obs[2]) > 20:
+        if math.fabs(obs[0]) > 1 or math.fabs(obs[2]) > 60:
             print(f"fucked obs: {obs}")
             done = True
             reward -= 100
@@ -161,7 +162,7 @@ class CarlaEnv(gym.Env):
 
         if done:
             logging.debug("Env lasts {} steps, restarting ... ".format(self.frame_step))
-            # self._destroy_agents()
+            self._destroy_agents()
 
         return obs, reward, done, info
 

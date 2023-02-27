@@ -48,7 +48,7 @@ def main(
                 load_model,
                 env,
                 # action_noise=NormalActionNoise(mean=np.array([0.0]), sigma=np.array([0.1])),
-                learning_starts=1000,
+                learning_starts=100,
                 verbose=2,
             )
         else:
@@ -60,7 +60,7 @@ def main(
                 seed=seed,
                 device="cuda",
                 tensorboard_log="./sem_sac",
-                # action_noise=NormalActionNoise(mean=np.array([0]), sigma=np.array([0.1])),
+                action_noise=NormalActionNoise(mean=np.array([0]), sigma=np.array([0.1])),
             )
         # print(model.__dict__)
         model.learn(total_timesteps=10000, log_interval=4, tb_log_name=model_name, reset_num_timesteps=True)
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     parser.add_argument("--model-name", help="name of model when saving")
     parser.add_argument("--load", type=str, help="whether to load existing model")
     parser.add_argument("--map", type=str, default="Town04", help="name of carla map")
-    parser.add_argument("--fps", type=int, default=40, help="fps of carla env")
+    parser.add_argument("--fps", type=int, default=60, help="fps of carla env")
     parser.add_argument("--width", type=int, help="width of camera observations")
     parser.add_argument("--height", type=int, help="height of camera observations")
     parser.add_argument("--repeat-action", type=int, help="number of steps to repeat each action")

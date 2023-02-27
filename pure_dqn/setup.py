@@ -89,6 +89,7 @@ def setup(
                 carla.WorldSettings(  # pylint: disable=no-member
                     synchronous_mode=True,
                     fixed_delta_seconds=1.0 / fps,
+                    no_rendering_mode=True,
                 )
             )
             logging.debug("Server version: {}".format(client.get_server_version()))
