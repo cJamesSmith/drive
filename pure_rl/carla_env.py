@@ -31,7 +31,7 @@ class CarlaEnv(gym.Env):
         timeout=10,
     ):
         # Env initialization
-        self.client, self.world, self.frame, self.server = setup(town=town, fps=fps, client_timeout=timeout)
+        self.client, self.world, self.frame, self.server = setup(town=town, fps=fps, client_timeout=timeout, playing=playing)
         self.map = self.world.get_map()
         blueprint_library = self.world.get_blueprint_library()
         self.lincoln = blueprint_library.filter("lincoln")[0]
@@ -47,10 +47,17 @@ class CarlaEnv(gym.Env):
         self.start_transform_Town04 = carla.Transform(
             carla.Location(x=self.my_waypoint[1000][0], y=self.my_waypoint[1000][1], z=0.1), carla.Rotation(0, self.my_waypoint[1000][2], 0)
         )
+
         print(self.start_transform_Town04)
         self.last_nearest_err = 0
         self.last_yaw_err = 0
-        self.pid = PID(0.25, 0.01, 0.05, setpoint=20, output_limits=(-1, 1))
+        self.pid = PID(0.25, 0.01, 0.05, setpoint=10, output_limits=(-1, 1))
+        self.neighbors = 20
+        self.last_nearest_id = 0
+        self.nearest_id = 0
+        self.fps = fps
+        self.settings = self.world.get_settings()
+        self.last_action = None
 
     @property
     def observation_space(self, *args, **kwargs):
@@ -61,7 +68,7 @@ class CarlaEnv(gym.Env):
     def action_space(self):
         """Returns the expected action passed to the `step` method."""
         if self.action_type == "continuous":
-            return gym.spaces.Box(low=-0.8, high=0.8, shape=(1,))
+            return gym.spaces.Box(low=-0.5, high=0.5, shape=(1,))
         elif self.action_type == "discrete":
             return gym.spaces.MultiDiscrete([4, 9])
         else:
@@ -76,6 +83,7 @@ class CarlaEnv(gym.Env):
         return seed
 
     def reset(self):
+        self.world.tick()  # TODO: it must have, don't fuck
         self._destroy_agents()
         # Car, sensors, etc. We create them every episode then destroy
         self.collision_hist = []
@@ -83,16 +91,15 @@ class CarlaEnv(gym.Env):
         self.frame_step = 0
         self.out_of_loop = 0
         self.dist_from_start = 0
+        self.last_loc = self.start_transform_Town04.location
 
         self.vehicle = self.world.spawn_actor(self.lincoln, self.start_transform_Town04)
         self.actor_list.append(self.vehicle)
-        # self.world.tick()  # TODO: it must have, don't fuck
 
         # Just to make it start recording, apparently passing an empty command makes it react
         # self.vehicle.apply_control(carla.VehicleControl(throttle=0.0, brake=0.0))
         time.sleep(0.1)
         # print(self.vehicle.get_transform())
-
         # observation:
         return self.get_obs()
 
@@ -117,6 +124,7 @@ class CarlaEnv(gym.Env):
         v = math.sqrt(v.x**2 + v.y**2 + v.z**2)
         if self.action_type == "continuous":
             throttle = self.pid(v)
+            # throttle = 0.5
             # print(throttle)
             # print(action)
             if throttle < 0:
@@ -133,7 +141,8 @@ class CarlaEnv(gym.Env):
             raise NotImplementedError()
         logging.debug("{}, {}, {}".format(action.throttle, action.steer, action.brake))
         self.vehicle.apply_control(action)
-
+        if self.last_action == None:
+            self.last_action = action
         loc = self.vehicle.get_location()
         new_dist_from_start = loc.distance(self.start_transform_Town04.location)
         square_dist_diff = new_dist_from_start**2 - self.dist_from_start**2
@@ -144,12 +153,20 @@ class CarlaEnv(gym.Env):
         info = dict()
 
         obs = self.get_obs()
-        reward -= obs[0] * 10
-        reward -= obs[2]
-        reward += square_dist_diff
+        reward -= obs[0]
+        reward -= math.fabs(obs[2]) * 10
+        self.last_action = action
+        reward += square_dist_diff**0.5
+        reward += v
+        reward -= action.steer * 10
+        # reward += 10 * (
+        #     (self.my_waypoint[self.last_nearest_id][0] - self.my_waypoint[self.nearest_id][0]) ** 2
+        #     + (self.my_waypoint[self.last_nearest_id][1] - self.my_waypoint[self.nearest_id][1]) ** 2
+        # )
+        # self.last_loc = loc
         # reward += 1
 
-        if math.fabs(obs[0]) > 1 or math.fabs(obs[2]) > 60:
+        if math.fabs(obs[0]) > 0.8 or math.fabs(obs[2]) > 8:
             print(f"fucked obs: {obs}")
             done = True
             reward -= 100
@@ -192,15 +209,22 @@ class CarlaEnv(gym.Env):
         cur_yaw = math.fmod(cur_yaw, 360)
         if cur_yaw < 0:
             cur_yaw += 360
-        nearest = self.tree.query(cur_pos, p=2)
-        yaw_err = cur_yaw - self.my_waypoint[nearest[1]][-1]
+        nearest = self.tree.query(cur_pos, k=self.neighbors, p=2)
+        self.nearest_id = nearest[1][0]
+        yaw_err = cur_yaw - self.my_waypoint[nearest[1][0]][-1]
+        yaws = [self.my_waypoint[id][-1] for id in nearest[1]]
+        curve = sum(yaws) / len(yaws)
         if yaw_err > 180:
             yaw_err = 360 - yaw_err
-        nearest_err = nearest[0]
+        curve_err = cur_yaw - curve
+        if curve_err > 180:
+            curve_err = 360 - curve_err
+        nearest_err = nearest[0][0]
         obs.append(nearest_err)
         obs.append(nearest_err - self.last_nearest_err)
         obs.append(yaw_err)
         obs.append(yaw_err - self.last_yaw_err)
+        # obs.append(curve_err / 360)
         # obs.append(self.vehicle.get_velocity())
         self.last_nearest_err = nearest_err
         self.last_yaw_err = yaw_err
