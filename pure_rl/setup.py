@@ -22,7 +22,7 @@ from absl import logging
 logging.set_verbosity(logging.DEBUG)
 
 
-def setup(town: str, fps: int = 20, server_timestop: float = 30.0, client_timeout: float = 20.0, num_max_restarts: int = 10, playing=False):
+def setup(town: str, fps: int = 30, server_timestop: float = 30.0, client_timeout: float = 20.0, num_max_restarts: int = 10, playing=False):
     """Returns the `CARLA` `server`, `client` and `world`.
 
     Args:
@@ -57,7 +57,8 @@ def setup(town: str, fps: int = 20, server_timestop: float = 30.0, client_timeou
         cmdline = (
             str(os.path.join("/home/cxw/Documents/CARLA_0.9.12", "CarlaUE4.sh"))
             + f" -carla-rpc-port={port}"
-            + f" -prefernvidia "
+            + f" -prefernvidia -benchmark -fps 50 "
+            # + f" -quality-level=Low "
             + (f" -RenderOffScreen " if not playing else "")
         )
         print(cmdline)
@@ -82,7 +83,7 @@ def setup(town: str, fps: int = 20, server_timestop: float = 30.0, client_timeou
             frame = world.apply_settings(
                 carla.WorldSettings(  # pylint: disable=no-member
                     synchronous_mode=True,
-                    fixed_delta_seconds=1.0 / fps,
+                    fixed_delta_seconds=0.05,
                     no_rendering_mode=True if not playing else False,
                 )
             )

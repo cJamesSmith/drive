@@ -57,7 +57,10 @@ class CarlaEnv(gym.Env):
         self.nearest_id = 0
         self.fps = fps
         self.settings = self.world.get_settings()
+        self.settings.synchronous_mode = True  # Enables synchronous mode
+        self.world.apply_settings(self.settings)
         self.last_action = None
+        self.snapshot = self.world.get_snapshot()
 
     @property
     def observation_space(self, *args, **kwargs):
@@ -68,7 +71,7 @@ class CarlaEnv(gym.Env):
     def action_space(self):
         """Returns the expected action passed to the `step` method."""
         if self.action_type == "continuous":
-            return gym.spaces.Box(low=-0.5, high=0.5, shape=(1,))
+            return gym.spaces.Box(low=-0.1, high=0.1, shape=(1,))
         elif self.action_type == "discrete":
             return gym.spaces.MultiDiscrete([4, 9])
         else:
@@ -104,6 +107,7 @@ class CarlaEnv(gym.Env):
         return self.get_obs()
 
     def step(self, action):
+        self.world.tick()  # TODO: it must have, don't fuck
         total_reward = 0
         for _ in range(self.repeat_action):
             obs, rew, done, info = self._step(action)
@@ -113,8 +117,8 @@ class CarlaEnv(gym.Env):
         return obs, total_reward, done, info
 
     def _step(self, action):
-        self.world.tick()  # TODO: it must have, don't fuck
         self.frame_step += 1
+        # print(self.world.get_snapshot().frame)
 
         # Apply control to the vehicle based on an action
 
@@ -145,7 +149,7 @@ class CarlaEnv(gym.Env):
             self.last_action = action
         loc = self.vehicle.get_location()
         new_dist_from_start = loc.distance(self.start_transform_Town04.location)
-        square_dist_diff = new_dist_from_start**2 - self.dist_from_start**2
+        square_dist_diff = new_dist_from_start - self.dist_from_start
         self.dist_from_start = new_dist_from_start
 
         done = False
@@ -154,11 +158,14 @@ class CarlaEnv(gym.Env):
 
         obs = self.get_obs()
         reward -= obs[0]
-        reward -= math.fabs(obs[2]) * 10
+        reward -= obs[1]
+        reward -= math.fabs(obs[2])
+        reward -= obs[3]
         self.last_action = action
-        reward += square_dist_diff**0.5
-        reward += v
-        reward -= action.steer * 10
+        # reward += square_dist_diff
+        reward += 10
+        reward -= (action.steer - self.last_action.steer) ** 2
+        reward -= math.fabs(action.steer)
         # reward += 10 * (
         #     (self.my_waypoint[self.last_nearest_id][0] - self.my_waypoint[self.nearest_id][0]) ** 2
         #     + (self.my_waypoint[self.last_nearest_id][1] - self.my_waypoint[self.nearest_id][1]) ** 2
@@ -166,14 +173,15 @@ class CarlaEnv(gym.Env):
         # self.last_loc = loc
         # reward += 1
 
-        if math.fabs(obs[0]) > 0.8 or math.fabs(obs[2]) > 8:
-            print(f"fucked obs: {obs}")
+        if math.fabs(obs[0]) > 0.1 or math.fabs(obs[2]) > 1:
+            print(f"fucked obs: {obs}, {self.my_waypoint[self.nearest_id]}")
             done = True
             reward -= 100
 
-        # if self.frame_step >= self.steps_per_episode:
-        #     done = True
-        #     reward += 500
+        if self.frame_step >= self.steps_per_episode:
+            print(f"*****good one, frame: {self.frame_step}*****")
+            done = True
+            reward += 500
 
         # self.total_reward += reward
 
