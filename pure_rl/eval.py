@@ -1,3 +1,4 @@
+import time
 import gym
 import numpy as np
 from stable_baselines3 import SAC
@@ -34,7 +35,8 @@ def main(
         obs = env.reset()
         total_reward = 0
         while True:
-            action, _states = model.predict(obs)
+            # time.sleep(1 / 50.0)
+            action, _states = model.predict(obs, deterministic=True)
             obs, reward, done, info = env.step(action)
             total_reward += reward
             if done:
@@ -48,12 +50,12 @@ def main(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-name", help="name of model when saving")
-    parser.add_argument("--load", type=str, help="whether to load existing model")
+    parser.add_argument("--load", type=str, default="sem_sac.zip", help="whether to load existing model")
     parser.add_argument("--map", type=str, default="Town04", help="name of carla map")
     parser.add_argument("--fps", type=int, default=20, help="fps of carla env")
     parser.add_argument("--width", type=int, help="width of camera observations")
     parser.add_argument("--height", type=int, help="height of camera observations")
-    parser.add_argument("--repeat-action", type=int, help="number of steps to repeat each action")
+    parser.add_argument("--repeat-action", type=int, default=1, help="number of steps to repeat each action")
     parser.add_argument("--start-location", type=str, help="start location type: [random, highway] for Town04")
     parser.add_argument("--sensor", action="append", type=str, help="type of sensor (can be multiple): [rgb, semantic]")
     parser.add_argument("--preview", action="store_true", help="whether to enable preview camera")
@@ -77,5 +79,3 @@ if __name__ == "__main__":
     main(
         model_name, load_model, town, fps, im_width, im_height, repeat_action, start_transform_type, sensors, enable_preview, steps_per_episode, seed
     )
-
-    main(model_name)

@@ -48,10 +48,10 @@ def main(
             model = SAC.load(
                 load_model,
                 env,
-                # action_noise=NormalActionNoise(mean=np.array([0.0]), sigma=np.array([0.1])),
-                learning_starts=5000,
+                # action_noise=NormalActionNoise(mean=np.array([0.0]), sigma=np.array([0.01])),
+                learning_starts=0,
                 verbose=2,
-                force_reset=True,
+                # force_reset=True,
                 # train_freq=10,
             )
         else:
@@ -64,18 +64,21 @@ def main(
                 device="cuda",
                 tensorboard_log="./sem_sac",
                 policy_kwargs={
-                    "net_arch": [64, 64],
+                    "net_arch": [128, 128],
                     "activation_fn": torch.nn.ReLU,
                     # "share_features_extractor": True,
                     # "features_extractor_class": MlpPolicy,
                     # "features_extractor_kwargs": {"net_arch": [64, 64]},
                 },
                 # train_freq=(5, "step")
-                # action_noise=NormalActionNoise(mean=np.array([0]), sigma=np.array([0.1])),
+                action_noise=NormalActionNoise(mean=np.array([0]), sigma=np.array([0.01])),
             )
-        print(model.__dict__)
+        # print(model.__dict__)
         # assert 1 == 0
-        model.learn(total_timesteps=50000, log_interval=4, tb_log_name=model_name, progress_bar=True)
+        # for id in range(50):
+        #     model.learn(total_timesteps=100000, log_interval=4, tb_log_name=model_name, progress_bar=True)
+        #     model.save(model_name + "_" + str(id))
+        model.learn(total_timesteps=50000, log_interval=20, tb_log_name=model_name, progress_bar=True)
         model.save(model_name)
     finally:
         env.close()

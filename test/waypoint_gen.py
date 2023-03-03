@@ -39,17 +39,18 @@ try:
             # break
             x = way.transform.location.x
             y = way.transform.location.y
+            z = way.transform.location.z
             yaw = way.transform.rotation.yaw
             yaw = math.fmod(yaw, 360)
             if yaw < 0:
                 yaw += 360
 
-            my_waypoint.append([x, y, yaw])
+            my_waypoint.append([x, y, z, yaw])
     my_waypoint = np.array(my_waypoint)
     print(my_waypoint.shape)
-    # np.savetxt("my_waypoint", my_waypoint)  # save
-    plt.plot(my_waypoint[:, 0], my_waypoint[:, 1], "o")  # visualize
-    plt.show()
+    np.savetxt("my_waypoint", my_waypoint)  # save
+    # plt.plot(my_waypoint[:, 0], my_waypoint[:, 1], "o")  # visualize
+    # plt.show()
 
 
 finally:
