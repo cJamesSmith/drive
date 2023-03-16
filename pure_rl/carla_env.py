@@ -54,7 +54,7 @@ class CarlaEnv(gym.Env):
         print(self.start_transform_Town04)
         self.last_nearest_err = 0
         self.last_yaw_err = 0
-        self.pid = PID(0.25, 0.01, 0.05, setpoint=20, output_limits=(-1, 1))
+        self.pid = PID(0.25, 0.01, 0.05, setpoint=30, output_limits=(-1, 1))
         self.neighbors = 5
         self.last_nearest_id = 0
         self.nearest_id = 0
@@ -232,7 +232,7 @@ class CarlaEnv(gym.Env):
         # reward -= obs[3]
         # reward += square_dist_diff
         reward += 8
-        reward -= math.fabs(action.steer - self.last_action.steer)
+        # reward -= math.fabs(action.steer - self.last_action.steer)
         self.last_action = action
         # reward -= math.fabs(action.steer)
         # reward += 10 * (
@@ -244,7 +244,7 @@ class CarlaEnv(gym.Env):
         self.epi_err_yaw += math.fabs(obs[2])
 
         # 训练时改小，测试时改大一点
-        if math.fabs(obs[0]) > 0.2 or 20 > math.fabs(obs[2]) > 5:
+        if math.fabs(obs[0]) > 2 or 20 > math.fabs(obs[2]) > 10 + math.fabs(obs[-1]):
             print(
                 f"fucked {obs}, {self.my_waypoint[self.nearest_id], self.epi_err_dist / self.frame_step, self.epi_err_yaw / self.frame_step}, l={self.frame_step}"
             )

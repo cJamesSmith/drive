@@ -78,7 +78,7 @@ def main(
         # for id in range(50):
         #     model.learn(total_timesteps=100000, log_interval=4, tb_log_name=model_name, progress_bar=True)
         #     model.save(model_name + "_" + str(id))
-        model.learn(total_timesteps=50000, log_interval=20, tb_log_name=model_name, progress_bar=True)
+        model.learn(total_timesteps=100000, log_interval=20, tb_log_name=model_name, progress_bar=True)
         model.save(model_name)
     finally:
         env.close()
