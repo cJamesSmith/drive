@@ -13,11 +13,12 @@ if __name__ == "__main__":
 
     for _ in range(1000):
         time.sleep(1 / 25)
+        # print(joystick.get_axis(0))
         for event in pygame.event.get():
             if event.type == pygame.JOYAXISMOTION:
                 print(joystick.get_axis(0))
-            elif event.type == pygame.JOYBUTTONDOWN:
-                if joystick.get_button(0):
-                    print(joystick.get_button(0))
-                elif joystick.get_button(1):
-                    print(joystick.get_button(1))
+            # elif event.type == pygame.JOYBUTTONDOWN:
+            #     if joystick.get_button(0):
+            #         print(joystick.get_button(0))
+            #     elif joystick.get_button(1):
+            #         print(joystick.get_button(1))

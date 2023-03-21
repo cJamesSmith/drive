@@ -32,19 +32,18 @@ try:
     client.set_timeout(2.0)
     world = client.get_world()
     blueprint_library = world.get_blueprint_library()
-    my_waypoint = np.loadtxt("my_waypoint")
-    tree = spatial.KDTree(my_waypoint[:, :2])
+    # my_waypoint = np.loadtxt("my_waypoint")
+    # tree = spatial.KDTree(my_waypoint[:, :2])
     bp = blueprint_library.filter("model3")[0]
     print(bp)
 
-    yaws = my_waypoint[:, -1]
+    # yaws = my_waypoint[:, -1]
     # print(max(yaws), min(yaws))
     # sys.exit()
 
-    # spawn_point = random.choice(world.get_map().get_spawn_points())\
-    print(world.get_map().get_spawn_points())
-    spawn_point = carla.Transform(carla.Location(x=my_waypoint[1000][0], y=my_waypoint[1000][1], z=0.1), carla.Rotation(0, my_waypoint[1000][2], 0))
-    print(spawn_point)
+    spawn_point = random.choice(world.get_map().get_spawn_points())  # print(world.get_map().get_spawn_points())
+    # spawn_point = carla.Transform(carla.Location(x=my_waypoint[1000][0], y=my_waypoint[1000][1], z=0.1), carla.Rotation(0, my_waypoint[1000][2], 0))
+    # print(spawn_point)
     vehicle = world.spawn_actor(bp, spawn_point)
     time.sleep(0.1)
     print(vehicle.get_transform())
@@ -58,17 +57,17 @@ try:
         v = vehicle.get_velocity()
         v = math.sqrt(v.x**2 + v.y**2 + v.z**2)
         throttle = pid(v)
-        cur_pos = [vehicle.get_transform().location.x, vehicle.get_transform().location.y]
-        cur_yaw = vehicle.get_transform().rotation.yaw
-        cur_yaw = math.fmod(cur_yaw, 360)
-        if cur_yaw < 0:
-            cur_yaw += 360
-        nearest = tree.query(cur_pos, p=2)
-        yaw_dir = cur_yaw - my_waypoint[nearest[1]][-1]
-        if 240 > math.fabs(yaw_dir) > 80:
-            print("dir_err > 80 fucking shit")
-            print(f"cur_pos: {cur_pos}, cur_yaw: {cur_yaw}, way_yaw: {my_waypoint[nearest[1]][-1]}")
-            break
+        # cur_pos = [vehicle.get_transform().location.x, vehicle.get_transform().location.y]
+        # cur_yaw = vehicle.get_transform().rotation.yaw
+        # cur_yaw = math.fmod(cur_yaw, 360)
+        # if cur_yaw < 0:
+        #     cur_yaw += 360
+        # nearest = tree.query(cur_pos, p=2)
+        # yaw_dir = cur_yaw - my_waypoint[nearest[1]][-1]
+        # if 240 > math.fabs(yaw_dir) > 80:
+        #     print("dir_err > 80 fucking shit")
+        #     print(f"cur_pos: {cur_pos}, cur_yaw: {cur_yaw}, way_yaw: {my_waypoint[nearest[1]][-1]}")
+        #     break
         # print(nearest[0], yaw_dir)
 
         time.sleep(1 / 30)

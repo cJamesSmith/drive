@@ -8,7 +8,6 @@ import os
 import sys
 
 import os
-import time
 
 import carla
 
@@ -32,9 +31,44 @@ from do_mpc.model import Model
 try:
     import pygame
     from pygame.locals import KMOD_CTRL
+    from pygame.locals import KMOD_SHIFT
+    from pygame.locals import K_0
+    from pygame.locals import K_9
+    from pygame.locals import K_BACKQUOTE
     from pygame.locals import K_BACKSPACE
+    from pygame.locals import K_COMMA
+    from pygame.locals import K_DOWN
     from pygame.locals import K_ESCAPE
+    from pygame.locals import K_F1
+    from pygame.locals import K_LEFT
+    from pygame.locals import K_PERIOD
+    from pygame.locals import K_RIGHT
+    from pygame.locals import K_SLASH
+    from pygame.locals import K_SPACE
+    from pygame.locals import K_TAB
+    from pygame.locals import K_UP
+    from pygame.locals import K_a
+    from pygame.locals import K_b
+    from pygame.locals import K_c
+    from pygame.locals import K_d
+    from pygame.locals import K_g
+    from pygame.locals import K_h
+    from pygame.locals import K_i
+    from pygame.locals import K_l
+    from pygame.locals import K_m
+    from pygame.locals import K_n
+    from pygame.locals import K_p
+    from pygame.locals import K_k
+    from pygame.locals import K_j
     from pygame.locals import K_q
+    from pygame.locals import K_r
+    from pygame.locals import K_s
+    from pygame.locals import K_v
+    from pygame.locals import K_w
+    from pygame.locals import K_x
+    from pygame.locals import K_z
+    from pygame.locals import K_MINUS
+    from pygame.locals import K_EQUALS
 except ImportError:
     raise RuntimeError("cannot import pygame, make sure pygame package is installed")
 
@@ -128,7 +162,6 @@ class World(object):
             ##--------------------------------------------------------------------------------
             spawn_point = spawn_points[271]
             spawn_point.location.x += 3.5
-            print("try player")
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
         # Set up the sensors.
         self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
@@ -200,6 +233,7 @@ class KeyboardControl(object):
         self.remember = 0
         self.flag = True
         self.xunhuan = 0
+        # self.x0_old = 0
         self.erryd = 0
 
         if isinstance(world.player, carla.Vehicle):
@@ -218,9 +252,16 @@ class KeyboardControl(object):
 
         ##--------------------------------------------------------------------------------------------------
 
-        self.pid = PID(0.5, 0.01, 0.05, setpoint=desired_speed, output_limits=(-1, 1))
-        self.waypoints = np.loadtxt(os.path.join(os.path.dirname(__file__), "../waypoint_list/my_waypoint"))
+        self.pid = PID(0.25, 0.01, 0.05, setpoint=desired_speed, output_limits=(-1, 1))
+        self.waypoints = np.loadtxt("my_waypoint")
         self.tree = spatial.KDTree(self.waypoints[:, :3])
+
+        # pygame.joystick.init()
+        # joystick_count = pygame.joystick.get_count()
+        # if joystick_count > 1:
+        #     raise ValueError("Please Connect Just One Joystick")
+        # self._joystick = pygame.joystick.Joystick(0)
+        # self._joystick.init()
 
     ##--------------------------------------------------------------------------------------------------
 
@@ -243,17 +284,25 @@ class KeyboardControl(object):
             ##---------------PID_Controller_For_Throttle--------------------##
             t = world.player.get_transform()
             v = world.player.get_velocity()
-            v = (v.x**2 + v.y**2) ** 0.5
+            v = (v.x**2 + v.y**2 + v.z**2) ** 0.5
             self._control.throttle = self.pid(v)
             ##---------------Mpc_Controller_For_Steer--------------------##
 
             cur_pos = [t.location.x, t.location.y, t.location.z]
-            # cur_yaw = t.rotation.yaw
+            cur_yaw = t.rotation.yaw
             nearest = self.tree.query(cur_pos)
 
             way_yaw = self.waypoints[nearest[1], -1]
             way_x = self.waypoints[nearest[1], 0]
             way_y = self.waypoints[nearest[1], 1]
+
+            global x_way_x
+            global x_way_y
+            global x_way_yaw
+
+            x_way_x = way_x
+            x_way_y = way_y
+            x_way_yaw = way_yaw
 
             x_use = t.location.x
             y_use = t.location.y
@@ -274,10 +323,10 @@ class KeyboardControl(object):
             index_find = np.argmin(abs(find_y))
             err_yaw = find_y[index_find]
 
-            # if -math.sin(way_yaw) * (x_use - way_x) + math.cos(way_yaw) * (y_use - way_y) > 0:
-            #     sig = -1
-            # else:
-            #     sig = 1
+            if -math.sin(way_yaw) * (x_use - way_x) + math.cos(way_yaw) * (y_use - way_y) > 0:
+                sig = -1
+            else:
+                sig = 1
 
             # err_d = nearest[0] * sig
             angle_car_road = math.atan2(way_y - y_use, way_x - x_use) - way_yaw
@@ -317,6 +366,7 @@ class KeyboardControl(object):
                 self.rem_y = err_yaw
                 self.remrem_y = err_yaw
             ##注意这里为了简化多加了个way_yaw
+            global x00
             x00 = np.array([err_d, err_d_d, err_yaw, err_y_d]).T
 
             if self.flag == True:
@@ -324,23 +374,15 @@ class KeyboardControl(object):
                 mpc.x0 = x00
                 mpc.set_initial_guess()
 
+            ##mpc控制
+            x0_save.append(x00)
             ##滤波
-            global theta_1
-            # if math.fabs(err_d) > 0.02:
-            #     theta_1 = 1
-            # else:
-            #     theta_1 = 10
-
-            # start = time.time()
             u0 = mpc.make_step(x00)
-            # stop = time.time()
-            # print(stop - start)
             # print(u0)
-
             self._control.steer = u0[0, 0]
 
-            if math.fabs(self._control.steer) > 0.08:
-                print(nearest[1], self.waypoints[nearest[1]], cur_pos)
+            # if math.fabs(self._control.steer) < 0.01:
+            #     self._control.steer = 0
 
             if self._control.throttle > 0:
                 self._control.brake = 0
@@ -349,8 +391,6 @@ class KeyboardControl(object):
                 self._control.throttle = 0
                 self._control.brake = -self._control.throttle
             self.xunhuan += 1
-            cur_state_and_control = [err_d, err_d_d, err_yaw, err_y_d, self._control.steer]
-            state_and_control.append(cur_state_and_control)
             world.player.apply_control(self._control)
 
     @staticmethod
@@ -412,6 +452,12 @@ class HUD(object):
             "Height:  % 18.0f m" % t.location.z,
             "",
         ]
+
+        # database_save.append(
+        #     [v.x, v.y, world.imu_sensor.gyroscope[2], t.location.x, t.location.y, c.steer, self.simulation_time,
+        #      world.imu_sensor.accelerometer[0], t.rotation.yaw, world.imu_sensor.accelerometer[1],
+        #      x_way_x, x_way_y,
+        #      x_way_yaw])  # 再说吧 找找speed_X实在不行就积分，应该也对
 
         if isinstance(c, carla.VehicleControl):
             self._info_text += [
@@ -718,7 +764,6 @@ def game_loop(args):
             # clock.tick_busy_loop(60)
             world.world.tick()
             if controller.parse_events(client, world, clock):
-                np.savetxt("state_and_control", state_and_control)
                 settings = world.world.get_settings()
                 settings.fixed_delta_seconds = None
                 settings.synchronous_mode = False
@@ -729,14 +774,12 @@ def game_loop(args):
             pygame.display.flip()
 
     finally:
-
         if world and world.recording_enabled:
             client.stop_recorder()
 
         if world is not None:
             world.destroy()
 
-        # sys.exit()
         pygame.quit()
 
 
@@ -806,13 +849,21 @@ def main():
 
 
 def p_fun_mhe(t_now):
-    p_template_mhe["_p"] = theta_1
+    p_template_mhe["_p"] = theta1
     return p_template_mhe
 
 
 if __name__ == "__main__":
     desired_speed = 20
     T_all = 0.05
+    # way_point_save = np.zeros([1,3])
+    x_way_x = 0
+    x_way_y = 0
+    x_way_yaw = 0
+    database_save = []
+    x0_save = []
+    x00 = np.zeros([1, 4])
+    u_steer = 0
 
     cf = 4.92 * 10000
     cr = -3.115810432198605 * 10000
@@ -821,6 +872,7 @@ if __name__ == "__main__":
     lf = 1.471
     lr = 1.389
     IZ = 1536.7
+    # vx = 10
 
     aa = -2 / mass / desired_speed
     bb = aa
@@ -855,18 +907,11 @@ if __name__ == "__main__":
 
     B_model = np.array([[0], [ii * T_all * cf], [0], [cf * jjj * T_all]])
 
-    # np.savetxt("A.txt", A_model)
-    # np.savetxt("B.txt", B_model)
-
-    state_and_control = []
-    theta_1 = 0
     ##初始化MPC
     # t1 = time.time()
+    theta1 = 0
     model_type = "discrete"
     model_mpc = Model(model_type)
-
-    # parameter test
-    Theta_1 = model_mpc.set_variable("parameter", "Theta_1")
 
     x0 = model_mpc.set_variable(var_type="_x", var_name="x0", shape=(1, 1))
     x1 = model_mpc.set_variable(var_type="_x", var_name="x1", shape=(1, 1))
@@ -874,6 +919,8 @@ if __name__ == "__main__":
     x3 = model_mpc.set_variable(var_type="_x", var_name="x3", shape=(1, 1))
 
     u = model_mpc.set_variable(var_type="_u", var_name="u", shape=(1, 1))
+
+    p_theta1 = model_mpc.set_variable("parameter", "Theta_1")
 
     ##_------------------------------------------------------------------------------------------------------------------
     x0_n = x0 * A_model[0, 0] + x1 * A_model[0, 1]
@@ -890,7 +937,7 @@ if __name__ == "__main__":
     # 设置控制器
     setup_mpc = {
         "n_robust": 1,
-        "n_horizon": 20,
+        "n_horizon": 10,
         "t_step": T_all,
         "state_discretization": "discrete",
         "store_full_solution": False,
@@ -898,20 +945,21 @@ if __name__ == "__main__":
     }
     mpc.set_param(**setup_mpc)
 
-    # mterm = model_mpc.x["x1"] ** 2
-    mterm = model_mpc.x["x0"] ** 2 + model_mpc.x["x2"] ** 2
+    mterm = model_mpc.x["x1"] ** 2
+    # mterm = 0
     lterm = (
-        10
+        p_theta1
+        * 10
         * model_mpc.x["x0"] ** 2
-        # + Theta_1 * model_mpc.u["u"] ** 2
+        # + model_mpc.u["u"] ** 2
         # + 100 * model_mpc.x["x2"] ** 2
         # + model_mpc.x["x3"] ** 2
     )
     mpc.set_objective(mterm=mterm, lterm=lterm)
-    mpc.set_rterm(u=10)
+    mpc.set_rterm(u=1)
 
-    mpc.bounds["lower", "_u", "u"] = -0.15
-    mpc.bounds["upper", "_u", "u"] = 0.15
+    mpc.bounds["lower", "_u", "u"] = -0.1
+    mpc.bounds["upper", "_u", "u"] = 0.1
 
     p_template_mhe = mpc.get_p_template(1)
     mpc.set_p_fun(p_fun_mhe)

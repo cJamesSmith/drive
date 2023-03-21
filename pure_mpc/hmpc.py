@@ -219,13 +219,20 @@ class KeyboardControl(object):
         ##--------------------------------------------------------------------------------------------------
 
         self.pid = PID(0.5, 0.01, 0.05, setpoint=desired_speed, output_limits=(-1, 1))
-        self.waypoints = np.loadtxt(os.path.join(os.path.dirname(__file__), "../waypoint_list/my_waypoint"))
+        self.waypoints = np.loadtxt(os.path.join(os.path.dirname(__file__), "my_waypoint_5"))
         self.tree = spatial.KDTree(self.waypoints[:, :3])
+        joystick_count = pygame.joystick.get_count()
+        self.joystick = pygame.joystick.Joystick(0)
+        self.joystick.init()
+        self.human_steer = 0
 
     ##--------------------------------------------------------------------------------------------------
 
     def parse_events(self, client, world, clock):
         for event in pygame.event.get():
+            if event.type == pygame.JOYAXISMOTION:
+                self.human_steer = self.joystick.get_axis(0)
+                print(self.joystick.get_axis(0))
             if event.type == pygame.QUIT:
                 return True
             elif event.type == pygame.KEYUP:
@@ -326,18 +333,10 @@ class KeyboardControl(object):
 
             ##滤波
             global theta_1
-            # if math.fabs(err_d) > 0.02:
-            #     theta_1 = 1
-            # else:
-            #     theta_1 = 10
 
-            # start = time.time()
             u0 = mpc.make_step(x00)
-            # stop = time.time()
-            # print(stop - start)
-            # print(u0)
 
-            self._control.steer = u0[0, 0]
+            self._control.steer = u0[0, 0] + self.human_steer / 10
 
             if math.fabs(self._control.steer) > 0.08:
                 print(nearest[1], self.waypoints[nearest[1]], cur_pos)
@@ -901,14 +900,14 @@ if __name__ == "__main__":
     # mterm = model_mpc.x["x1"] ** 2
     mterm = model_mpc.x["x0"] ** 2 + model_mpc.x["x2"] ** 2
     lterm = (
-        10
+        1
         * model_mpc.x["x0"] ** 2
         # + Theta_1 * model_mpc.u["u"] ** 2
         # + 100 * model_mpc.x["x2"] ** 2
         # + model_mpc.x["x3"] ** 2
     )
     mpc.set_objective(mterm=mterm, lterm=lterm)
-    mpc.set_rterm(u=10)
+    mpc.set_rterm(u=5)
 
     mpc.bounds["lower", "_u", "u"] = -0.15
     mpc.bounds["upper", "_u", "u"] = 0.15
